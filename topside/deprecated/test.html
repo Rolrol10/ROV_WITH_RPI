@@ -1,0 +1,51 @@
+<!-- save as overlay.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ROV Feed with Overlay</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: black; }
+    #video-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+    #video {
+      width: 100%;
+      height: 100%;
+    }
+    .marker {
+      position: absolute;
+      border: 2px solid lime;
+      background: rgba(0, 255, 0, 0.2);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="video-container">
+    <iframe id="video" src="http://10.253.0.10:8889/cam" frameborder="0" allowfullscreen></iframe>
+  </div>
+
+  <script>
+    const container = document.getElementById("video-container");
+
+    const socket = new WebSocket("ws://localhost:6789");
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "detection") {
+        let marker = document.createElement("div");
+        marker.classList.add("marker");
+        marker.style.left = data.x + "px";
+        marker.style.top = data.y + "px";
+        marker.style.width = data.width + "px";
+        marker.style.height = data.height + "px";
+        container.appendChild(marker);
+
+        // Remove marker after 1.5s
+        setTimeout(() => container.removeChild(marker), 1500);
+      }
+    };
+  </script>
+</body>
+</html>

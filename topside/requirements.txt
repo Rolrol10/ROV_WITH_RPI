@@ -1,0 +1,6 @@
+flask
+opencv-python
+requests          # if your control system uses HTTP
+websockets        # for future browser-based control
+inputs            # for gamepad input
+pygame

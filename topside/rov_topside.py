@@ -1,5 +1,7 @@
 # rov_topside.py (refactored with class-based module management)
 
+import subprocess
+import platform
 import asyncio
 import importlib
 from modules import network_handler, module_launcher, launch_gui
@@ -27,7 +29,16 @@ class TopsideController:
 
     async def start_gui(self):
         print("🖥️ Launching GUI")
-        launch_gui.launch_gui()
+        self.electron_proc = launch_gui.launch_gui(return_process=True)
+
+        # launch_gui.launch_gui()
+
+    async def close_gui(self):
+        print("Closing GUI")
+        if platform.system() == "Windows":
+            subprocess.call(["taskkill", "/f", "/im", "electron.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            subprocess.call(["pkill", "-f", "electron"])
 
     async def start_input_controllers(self):
         if "input_controllers" in self.running_tasks and not self.running_tasks["input_controllers"].done():
@@ -72,7 +83,9 @@ class TopsideController:
                 await self.start_image_processor()
             elif cmd == "stop_image":
                 await self.stop_image_processor()
+                await self.close_gui()
             elif cmd == "quit":
+                await self.close_gui()
                 print("🛑 Quit requested from GUI")
                 break
 

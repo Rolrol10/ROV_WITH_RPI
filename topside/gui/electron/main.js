@@ -15,7 +15,7 @@ function createWindow() {
   });
 
   // Load the GUI HTML file
-  win.loadFile(path.join(__dirname, '../gui.html'));
+  win.loadFile(path.join(__dirname, '../index.html'));
 }
 
 app.whenReady().then(createWindow);

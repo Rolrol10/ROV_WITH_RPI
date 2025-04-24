@@ -75,6 +75,8 @@ class TopsideController:
             cmd = await self.command_queue.get()
             if cmd == "start_gui":
                 await self.start_gui()
+            elif cmd == "stop_gui":
+                await self.close_gui()
             elif cmd == "start_input_controllers":
                 await self.start_input_controllers()
             elif cmd == "stop_input_controllers":
@@ -85,8 +87,7 @@ class TopsideController:
                 await self.stop_image_processor()
                 await self.close_gui()
             elif cmd == "quit":
-                await self.close_gui()
-                print("🛑 Quit requested from GUI")
+                print("🛑 Quit requested from button panel")
                 break
 
     async def run(self):

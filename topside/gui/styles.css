@@ -1,0 +1,169 @@
+/* === Theme Profiles === */
+:root {
+    --accent: #00bcd4;
+    --accent-hover: #0097a7;
+    --bg: #111;
+    --text: white;
+    --panel: #222;
+    --border: #555;
+  }
+  
+  /* Themes */
+  .theme-tech {
+    --accent: #00bcd4;
+    --accent-hover: #0097a7;
+  }
+  
+  .theme-ocean {
+    --accent: #0077be;
+    --accent-hover: #005f8a;
+  }
+  
+  .theme-orange {
+    --accent: #ff9800;
+    --accent-hover: #f57c00;
+  }
+  
+  .theme-green {
+    --accent: #4caf50;
+    --accent-hover: #388e3c;
+  }
+  
+  body {
+    margin: 0;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: Arial, sans-serif;
+  }
+  
+  header {
+    background-color: var(--accent);
+    padding: 10px 20px;
+    font-size: 20px;
+    font-weight: bold;
+  }
+  
+  /* Default (no layout override) */
+  main {
+    padding: 2rem;
+  }
+
+  /* Dashboard layout: side-by-side video + controls */
+  body.page-dashboard {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  
+  body.page-dashboard main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* Settings layout: scrollable vertical */
+  body.page-settings main {
+    display: block;
+    overflow-y: auto;
+  }
+  
+  #video-container {
+    flex: 3;
+    padding: 10px;
+    border-right: 2px solid var(--border);
+  }
+  
+  iframe {
+    width: 100%;
+    height: 100%;
+    border: 6px solid var(--accent);
+    border-radius: 12px;
+    box-sizing: border-box;
+  }
+  
+  #controls {
+    flex: 1;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .btn {
+    display: inline-block;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    background-color: var(--accent);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: black;
+    text-align: center;
+    line-height: 1;
+  }
+  
+  .btn:hover {
+    background-color: var(--accent-hover);
+  }
+  
+  
+  .status-box {
+    background-color: var(--panel);
+    border: 1px solid var(--border);
+    padding: 10px;
+    border-radius: 6px;
+  }
+
+
+  input[type="text"],
+  input[type="number"],
+  input[type="range"],
+  select {
+    background-color: #222;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  select:focus {
+    border-color: grey;
+  }
+
+  input[type="range"] {
+    padding: 0;
+    height: 24px;
+    background: transparent;
+  }
+
+  .slider-pair {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem 2rem;
+  }
+  
+  @media (max-width: 768px) {
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  form label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  

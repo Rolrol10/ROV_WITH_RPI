@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ROV Control Panel</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="page-dashboard">
+  <script>
+    const savedTheme = localStorage.getItem('gui-theme') || 'tech';
+    document.body.classList.add(`theme-${savedTheme}`);
+  </script>
+
+  <header>🚀 ROV Control Center</header>
+
+  <main>
+    <div id="video-container">
+      <iframe id="stream" allow="autoplay"></iframe>
+    </div>
+
+    <div id="controls">
+      <button class="btn" onclick="reloadFeed()">Reload Feed</button>
+      <button class="btn" onclick="sendCommand('start_stream')">Start Stream</button>
+      <button class="btn" onclick="sendCommand('stop_stream')">Stop Stream</button>
+      <button class="btn" onclick="sendCommand('default_settings')">Reset Camera Settings</button>
+
+      <div class="status-box" id="statusBox">
+        <strong>Status:</strong><br>
+        Connected: <span id="wsStatus">no</span><br>
+        Last Command: <span id="lastCmd">none</span><br>
+        ROV Message: <span id="rovMsg">waiting...</span>
+      </div>
+
+      <a href="settings.html" class="btn">⚙️ Settings</a>
+    </div>
+  </main>
+
+  <script>
+    const ws = new WebSocket("ws://localhost:9999");
+    const status = document.getElementById("wsStatus");
+    const lastCmd = document.getElementById("lastCmd");
+    const rovMsg = document.getElementById("rovMsg");
+
+     // Load dynamic stream IP
+    const streamURL = localStorage.getItem("stream-ip") || "http://10.253.0.10:8889/cam";
+    document.getElementById("stream").src = streamURL;
+
+    ws.onopen = () => status.innerText = "yes ✅";
+    ws.onclose = () => status.innerText = "no ❌";
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "status" || data.type === "telemetry") {
+          rovMsg.innerText = JSON.stringify(data);
+        }
+      } catch (e) {
+        console.warn("Failed to parse message", e);
+      }
+    };
+
+    function reloadFeed() {
+      const iframe = document.getElementById("stream");
+      iframe.src = ""; // Force unload
+      setTimeout(() => {
+        iframe.src = streamURL;
+        console.log("🔁 Stream reloaded");
+      }, 100); // slight delay to trigger reload
+    }
+
+
+    function sendCommand(action) {
+      const msg = JSON.stringify({
+        type: "stream",
+        action: action
+      });
+      ws.send(msg);
+      lastCmd.innerText = action;
+
+      if (action === "start_stream") {
+        setTimeout(() => {
+          reloadFeed();
+        }, 1000);
+      }
+    }
+  </script>
+</body>
+</html>

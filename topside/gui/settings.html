@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ROV Settings</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    const savedTheme = localStorage.getItem('gui-theme') || 'tech';
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.classList.add(`theme-${savedTheme}`);
+    });
+  </script>
+  <script src="main.js" defer></script>
+</head>
+<body class="page-settings">
+
+
+  <header>⚙️ ROV Settings</header>
+
+  <!-- Top Toolbar -->
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem;">
+    <a href="index.html" class="btn">⬅ Back</a>
+    <button type="submit" form="settingsForm" class="btn">💾 Save</button>
+  </div>
+
+  <main>
+    <form id="settingsForm" style="padding: 1rem 2rem 2rem 2rem; width: 100%; max-width: 900px; margin: 0 auto;">
+      <h2>🔧 General Settings</h2>
+
+      <div class="form-grid">
+        <div>
+          <label for="streamIP">Stream IP</label>
+          <input type="text" id="streamIP" placeholder="e.g. http://10.253.0.10:8889/cam" />
+        </div>
+        
+        <div>
+          <label for="resolution">Stream Resolution</label>
+          <input type="text" id="resolution" placeholder="e.g. 1280x720" />
+        </div>
+
+        <div>
+          <label for="joystick">Controller Type</label>
+          <select id="joystick">
+            <option value="ps4">PlayStation 4</option>
+            <option value="xbox">Xbox</option>
+            <option value="wheel">Steering Wheel</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="theme">Theme</label>
+          <select id="theme">
+            <option value="tech">Tech Blue</option>
+            <option value="ocean">Ocean Blue</option>
+            <option value="orange">Safety Orange</option>
+            <option value="green">Military Green</option>
+          </select>
+        </div>
+
+        <div style="margin-top: 2.2rem;">
+          <label>
+            <input type="checkbox" id="autoConnect" />
+            Auto-connect on launch
+          </label>
+        </div>
+      </div>
+
+      <details style="margin-top: 2rem;">
+        <summary style="font-size: 18px; cursor: pointer;">📷 Camera Settings</summary>
+        <div class="form-grid" style="margin-top: 1rem; padding-left: 1rem;">
+          <div><label>Sensor Mode</label><input type="text" id="rpiCameraMode" value="1640:1232:8" /></div>
+          <div><label>Width</label><input type="number" id="rpiCameraWidth" value="360" /></div>
+          <div><label>Height</label><input type="number" id="rpiCameraHeight" value="240" /></div>
+          <div><label>FPS</label><input type="number" id="rpiCameraFPS" value="30" /></div>
+          <div><label>Bitrate</label><input type="number" id="rpiCameraBitrate" value="500000" /></div>
+          <div><label>IDR Period</label><input type="number" id="rpiCameraIDRPeriod" value="60" /></div>
+          <div><label><input type="checkbox" id="rpiCameraVFlip" /> Vertical Flip</label></div>
+          <div><label><input type="checkbox" id="rpiCameraHFlip" /> Horizontal Flip</label></div>
+
+          <!-- Sliders -->
+          <div>
+            <label>Brightness</label>
+            <div class="slider-pair">
+              <input type="range" id="rpiCameraBrightness" min="-1" max="1" step="0.1" value="0" />
+              <input type="number" id="rpiCameraBrightnessVal" min="-1" max="1" step="0.1" value="0" />
+            </div>
+          </div>
+
+          <div>
+            <label>Contrast</label>
+            <div class="slider-pair">
+              <input type="range" id="rpiCameraContrast" min="0" max="16" value="1" />
+              <input type="number" id="rpiCameraContrastVal" min="0" max="16" value="1" />
+            </div>
+          </div>
+
+          <div>
+            <label>Saturation</label>
+            <div class="slider-pair">
+              <input type="range" id="rpiCameraSaturation" min="0" max="16" value="1" />
+              <input type="number" id="rpiCameraSaturationVal" min="0" max="16" value="1" />
+            </div>
+          </div>
+
+          <div>
+            <label>Sharpness</label>
+            <div class="slider-pair">
+              <input type="range" id="rpiCameraSharpness" min="0" max="16" value="1" />
+              <input type="number" id="rpiCameraSharpnessVal" min="0" max="16" value="1" />
+            </div>
+          </div>
+
+          <!-- Dropdowns -->
+          <div><label>Exposure Mode</label>
+            <select id="rpiCameraExposure">
+              <option value="normal">Normal</option>
+              <option value="short">Short</option>
+              <option value="long">Long</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+
+          <div><label>White Balance</label>
+            <select id="rpiCameraAWB">
+              <option value="auto">Auto</option>
+              <option value="incandescent">Incandescent</option>
+              <option value="tungsten">Tungsten</option>
+              <option value="fluorescent">Fluorescent</option>
+              <option value="indoor">Indoor</option>
+              <option value="daylight">Daylight</option>
+              <option value="cloudy">Cloudy</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+
+          <div><label>Denoise</label>
+            <select id="rpiCameraDenoise">
+              <option value="off">Off</option>
+              <option value="cdn_off">cdn_off</option>
+              <option value="cdn_fast">cdn_fast</option>
+              <option value="cdn_hq">cdn_hq</option>
+            </select>
+          </div>
+
+          <div><label>Metering</label>
+            <select id="rpiCameraMetering">
+              <option value="centre">Centre</option>
+              <option value="spot">Spot</option>
+              <option value="matrix">Matrix</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+
+          <div><label>Shutter (µs)</label><input type="number" id="rpiCameraShutter" value="0" /></div>
+          <div><label>Gain</label><input type="number" id="rpiCameraGain" value="0" /></div>
+
+          <div><label>AF Mode</label>
+            <select id="rpiCameraAfMode">
+              <option value="auto">Auto</option>
+              <option value="manual">Manual</option>
+              <option value="continuous">Continuous</option>
+            </select>
+          </div>
+        </div>
+      </details>
+    </form>
+  </main>
+</body>
+</html>

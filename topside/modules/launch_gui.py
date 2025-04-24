@@ -34,10 +34,10 @@ def launch_gui(return_process=False):
         except Exception as e:
             print(f"❌ Failed to launch Electron GUI: {e}")
 
-    # 🔁 Option 2: Fallback to Opera or default browser
-    if system == "Windows" and os.path.exists(OPERA_PATH):
-        print("🌐 Launching GUI in Opera...")
-        subprocess.Popen([OPERA_PATH, "--new-window", url])
-    else:
-        print("🌐 Opera not found, opening GUI in default browser.")
-        webbrowser.open(url)
+    # # 🔁 Option 2: Fallback to Opera or default browser
+    # if system == "Windows" and os.path.exists(OPERA_PATH):
+    #     print("🌐 Launching GUI in Opera...")
+    #     subprocess.Popen([OPERA_PATH, "--new-window", url])
+    # else:
+    #     print("🌐 Opera not found, opening GUI in default browser.")
+    #     webbrowser.open(url)

@@ -12,7 +12,7 @@ main_loop = None
 BUTTONS = {
     "Input_controllers": ("start_input_controllers", "stop_input_controllers"),
     "Image Processor": ("start_image", "stop_image"),
-    "GUI (Browser)": ("start_gui", None),
+    "GUI (Browser)": ("start_gui", "stop_gui"),
     "Quit All": ("quit", None),
 }
 

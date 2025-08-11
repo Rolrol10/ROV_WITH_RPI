@@ -1,3 +1,41 @@
+# --- Auto-venv bootstrap: venv lives one folder up from this script ---
+import os, sys, subprocess
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT = SCRIPT_DIR.parent               # <-- one folder up
+VENV = ROOT / ".venv"
+
+def in_venv():
+    return (
+        hasattr(sys, "real_prefix")
+        or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)
+        or os.environ.get("VIRTUAL_ENV")
+    )
+
+if not in_venv():
+    if not VENV.exists():
+        print(f"📦 Creating virtual environment in {VENV} …")
+        import venv
+        venv.EnvBuilder(with_pip=True).create(str(VENV))
+        subprocess.check_call([str(VENV / "bin" / "python"), "-m", "pip", "install", "-U", "pip", "setuptools", "wheel"])
+
+        # Try common requirements locations at the project root
+        reqs = None
+        for cand in ("requirements.txt", "rovside/requirements.txt"):
+            p = ROOT / cand
+            if p.exists():
+                reqs = p
+                break
+        if reqs:
+            print(f"📦 Installing from {reqs} …")
+            subprocess.check_call([str(VENV / "bin" / "python"), "-m", "pip", "install", "-r", str(reqs)])
+        else:
+            print("⚠️ No requirements.txt found at the root; skipping dependency install.")
+
+    print("🔁 Re-launching inside virtual environment …\n")
+    os.execv(str(VENV / "bin" / "python"), [str(VENV / "bin" / "python")] + sys.argv)
+
 import asyncio
 import websockets
 import json

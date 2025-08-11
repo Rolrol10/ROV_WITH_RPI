@@ -8,7 +8,7 @@ from modules import network_handler, module_launcher, launch_gui
 
 # 🎛️ Module toggle config
 ENABLED_MODULES = {
-    "relay": True,              # Has to run for ws between modules on topside to work
+    "relay": True,              # Has to run for websocket between modules on topside to work
     "input_controllers": False,
     "gui": False,
     "image_processor": False,

@@ -4,7 +4,8 @@ import asyncio
 import websockets
 import json
 
-REMOTE_ROV_WS = "ws://10.253.0.10:8765"
+REMOTE_ROV_WS = "ws://raspberrypi.local:8765"
+# REMOTE_ROV_WS = "ws://10.253.0.10:8765"
 LOCAL_LISTEN_PORT = 9999
 
 # Global pointer to the current relay instance

@@ -30,7 +30,7 @@ def launch_gui(return_process=False):
                 return proc
             return None
         except FileNotFoundError:
-            print("❌ npm not found. Make sure Node.js is installed and in PATH.")
+            print("❌ npm not found. Make sure Node.js is installed and in PATH. Beware that Node.js is not a python package, but its own program!")
         except Exception as e:
             print(f"❌ Failed to launch Electron GUI: {e}")
 

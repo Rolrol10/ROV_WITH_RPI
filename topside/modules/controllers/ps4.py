@@ -8,7 +8,7 @@ from modules.controllers.mappings.ps4_mapping import *
 
 DEADZONE = 0.1
 SCALE = 90
-SEND_INTERVAL = 0.1
+SEND_INTERVAL = 0.1  # Minimum interval between updates (seconds)
 
 STREAM_TYPE = "stream"
 BUTTON_MAP = {
@@ -49,6 +49,10 @@ async def run(ws_url):
     joystick = None
     was_connected = False
 
+    last_sent_time = 0
+    last_sent_pan = None
+    last_sent_tilt = None
+
     try:
         async with websockets.connect(ws_url, ping_interval=30, ping_timeout=20) as ws:
             print(f"🔗 Connected to topside ws relay at: {ws_url}")
@@ -78,33 +82,34 @@ async def run(ws_url):
                 pan = normalize(x)
                 tilt = normalize(-y)
 
-                command = {
-                    "type": "servo",
-                    "action": "set_angle",
-                    "pan": pan,
-                    "tilt": tilt
-                }
+                now = pygame.time.get_ticks() / 1000  # Convert to seconds
 
-                try:
+                if (pan != last_sent_pan or tilt != last_sent_tilt) and (now - last_sent_time) > SEND_INTERVAL:
+                    command = {
+                        "type": "servo",
+                        "action": "set_angle",
+                        "pan": pan,
+                        "tilt": tilt
+                    }
                     await ws.send(json.dumps(command))
+                    last_sent_pan = pan
+                    last_sent_tilt = tilt
+                    last_sent_time = now
 
-                    for action, button_index in BUTTON_MAP.items():
-                        if joystick.get_button(button_index):
-                            now = pygame.time.get_ticks()
-                            if now - last_button_time > DEBOUNCE_TIME * 1000:
-                                stream_cmd = {
-                                    "type": STREAM_TYPE,
-                                    "action": action
-                                }
-                                await ws.send(json.dumps(stream_cmd))
-                                print(f"🎬 Sent stream command: {action}")
-                                last_button_time = now
+                # Button handling
+                for action, button_index in BUTTON_MAP.items():
+                    if joystick.get_button(button_index):
+                        now_ticks = pygame.time.get_ticks()
+                        if now_ticks - last_button_time > DEBOUNCE_TIME * 1000:
+                            stream_cmd = {
+                                "type": STREAM_TYPE,
+                                "action": action
+                            }
+                            await ws.send(json.dumps(stream_cmd))
+                            print(f"🎬 Sent stream command: {action}")
+                            last_button_time = now_ticks
 
-                except websockets.ConnectionClosed:
-                    print("🔌 Joystick WebSocket disconnected.")
-                    return
-
-                await asyncio.sleep(SEND_INTERVAL)
+                await asyncio.sleep(0.01)  # Small sleep to yield
 
     except Exception as e:
         print(f"❌ WebSocket connection failed: {e}")

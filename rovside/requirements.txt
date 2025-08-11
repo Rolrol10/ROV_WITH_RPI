@@ -3,3 +3,4 @@ adafruit-blinka
 adafruit-circuitpython-pca9685
 adafruit-circuitpython-motor
 ruamel.yaml
+spidev

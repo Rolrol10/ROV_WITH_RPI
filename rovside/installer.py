@@ -1,34 +1,75 @@
 # install_requirements.py
-
-import subprocess
+# Auto-creates a local venv (.venv), re-execs inside it, then installs requirements.
+import os
 import sys
-import importlib.util
+import subprocess
+from pathlib import Path
 
-def parse_requirements(file_path):
-    modules = []
-    with open(file_path, "r") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                module = line.split("==")[0]  # Get just the module name
-                modules.append(module)
-    return modules
+try:
+    import venv
+except Exception as e:
+    print("❌ Python's 'venv' module is unavailable.\n"
+          "   On Raspberry Pi OS run: sudo apt install -y python3-venv\n"
+          f"Details: {e}")
+    sys.exit(1)
 
-def is_module_installed(module_name):
-    return importlib.util.find_spec(module_name) is not None
+ROOT = Path(__file__).resolve().parents[1]  # project root (…/ROV_WITH_RPI)
+VENV = ROOT / ".venv"
+REQS = ROOT / "rovside" / "requirements.txt"
+
+def in_venv() -> bool:
+    # Works for Python 3.8+
+    return (hasattr(sys, "real_prefix") or
+            (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix) or
+            os.environ.get("VIRTUAL_ENV"))
+
+def ensure_venv():
+    if VENV.exists():
+        return
+    print(f"📦 Creating virtual environment at {VENV} …")
+    venv.EnvBuilder(with_pip=True, clear=False, upgrade=False).create(str(VENV))
+
+def reexec_in_venv():
+    py = VENV / "bin" / "python"
+    if not py.exists():
+        print("❌ venv python not found after creation. Aborting.")
+        sys.exit(1)
+    print("🔁 Re-running installer inside the virtual environment …")
+    os.execv(str(py), [str(py), __file__])
+
+def pip(args):
+    cmd = [sys.executable, "-m", "pip"] + args
+    subprocess.check_call(cmd)
 
 def install_requirements():
-    print("📦 Installing from requirements.txt...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "rovside/requirements.txt"])
+    if not REQS.exists():
+        print(f"❌ requirements.txt not found at: {REQS}")
+        sys.exit(1)
+
+    print("📦 Upgrading pip/setuptools/wheel …")
+    pip(["install", "-U", "pip", "setuptools", "wheel"])
+
+    print(f"📦 Installing from {REQS} …")
+    # No --break-system-packages; we're in a venv so it's clean
+    pip(["install", "-r", str(REQS)])
 
 def main():
-    required_modules = parse_requirements("rov/requirements.txt")
-    missing = [m for m in required_modules if not is_module_installed(m)]
-    if missing:
-        print(f"⚠️ Missing modules: {', '.join(missing)}")
+    # If we're not inside the venv yet, create it and re-exec inside.
+    if not in_venv():
+        ensure_venv()
+        reexec_in_venv()
+        return
+
+    # Inside venv now
+    try:
         install_requirements()
-    else:
-        print("✅ All required modules are already installed.")
+        print("\n✅ Done.")
+        print(f"👉 To use it next time:\n"
+              f"   source {VENV}/bin/activate\n"
+              f"   python your_entrypoint.py\n")
+    except subprocess.CalledProcessError as e:
+        print(f"\n❌ Command failed: {' '.join(e.cmd)}\nExit code: {e.returncode}")
+        sys.exit(e.returncode)
 
 if __name__ == "__main__":
     main()

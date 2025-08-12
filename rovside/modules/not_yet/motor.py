@@ -3,7 +3,7 @@
 # Mirrors the structure of your servo.py (TYPE + ACTIONS)
 
 import atexit
-from spi_link import SPIDriver
+from rovside.modules.not_yet.spi_link import SPIDriver
 
 # --- Module type ---
 TYPE = "motor"

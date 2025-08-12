@@ -1,57 +1,45 @@
-from board import SCL, SDA
-import busio
-from adafruit_pca9685 import PCA9685
-from adafruit_motor import servo
+# modules/servo.py
+# Print-only (no hardware) servo module keeping the same interface.
 
 # --- Module type ---
-
 TYPE = "servo"
 
-# Actions list at bottom of file
-
-# --- Setup ---
-i2c = busio.I2C(SCL, SDA)
-pca = PCA9685(i2c)
-pca.frequency = 50
-
-pan_servo = servo.Servo(pca.channels[0], min_pulse=500, max_pulse=2500)
-tilt_servo = servo.Servo(pca.channels[4], min_pulse=500, max_pulse=2500)
-
-# --- Initial positions ---
+# --- State ---
 last_pan = 90
 last_tilt = 90
-pan_servo.angle = last_pan
-tilt_servo.angle = last_tilt
 
-# --- Threshold in degrees ---
+# Only print updates if change >= threshold (degrees)
 ANGLE_THRESHOLD = 2
 
+def _maybe_int(v, fallback):
+    try:
+        return int(v)
+    except Exception:
+        return fallback
+
 def set_angle(data):
+    """
+    Expects:
+      { "type": "servo", "action": "set_angle", "pan": <0..180>, "tilt": <0..180> }
+    Other keys are ignored.
+    """
     global last_pan, last_tilt
 
-    # if data.get("type") != "servo":
-    #     return
+    pan  = _maybe_int(data.get("pan",  last_pan),  last_pan)
+    tilt = _maybe_int(data.get("tilt", last_tilt), last_tilt)
 
-    pan = int(data.get("pan", last_pan))
-    tilt = int(data.get("tilt", last_tilt))
+    # (Optional) clamp to sane range
+    pan  = max(0, min(180, pan))
+    tilt = max(0, min(180, tilt))
 
-    pan_changed = abs(pan - last_pan) >= ANGLE_THRESHOLD
+    pan_changed  = abs(pan  - last_pan)  >= ANGLE_THRESHOLD
     tilt_changed = abs(tilt - last_tilt) >= ANGLE_THRESHOLD
 
-    if pan_changed:
-        pan_servo.angle = pan
-        last_pan = pan
-
-    if tilt_changed:
-        tilt_servo.angle = tilt
-        last_tilt = tilt
-
     if pan_changed or tilt_changed:
-        print(f"🕹️ Updated → Pan: {last_pan}, Tilt: {last_tilt}")
+        last_pan, last_tilt = pan, tilt
+        print(f"🕹️ [SERVO] Pan={last_pan}°, Tilt={last_tilt}°")
 
 # --- Actions ---
-
 ACTIONS = {
     "set_angle": set_angle,
-    # "calibrate": calibrate,
 }

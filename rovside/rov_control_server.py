@@ -1,40 +1,43 @@
 # --- Auto-venv bootstrap: venv lives one folder up from this script ---
+# --- Auto-venv bootstrap: venv lives one folder up from this script ---
 import os, sys, subprocess
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-ROOT = SCRIPT_DIR.parent               # <-- one folder up
+ROOT = SCRIPT_DIR.parent
 VENV = ROOT / ".venv"
 
+def venv_python():
+    return VENV / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
 def in_venv():
-    return (
-        hasattr(sys, "real_prefix")
-        or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)
-        or os.environ.get("VIRTUAL_ENV")
-    )
+    return (hasattr(sys, "real_prefix")
+            or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)
+            or os.environ.get("VIRTUAL_ENV"))
 
 if not in_venv():
     if not VENV.exists():
         print(f"📦 Creating virtual environment in {VENV} …")
-        import venv
-        venv.EnvBuilder(with_pip=True).create(str(VENV))
-        subprocess.check_call([str(VENV / "bin" / "python"), "-m", "pip", "install", "-U", "pip", "setuptools", "wheel"])
-
-        # Try common requirements locations at the project root
-        reqs = None
-        for cand in ("requirements.txt", "rovside/requirements.txt"):
-            p = ROOT / cand
-            if p.exists():
-                reqs = p
-                break
+        import venv; venv.EnvBuilder(with_pip=True).create(str(VENV))
+        subprocess.check_call([str(venv_python()), "-m", "pip", "install", "-U", "pip", "setuptools", "wheel"])
+        # Try common requirements at project root
+        reqs = next((p for p in (ROOT/"requirements.txt", ROOT/"rovside/requirements.txt") if p.exists()), None)
         if reqs:
             print(f"📦 Installing from {reqs} …")
-            subprocess.check_call([str(VENV / "bin" / "python"), "-m", "pip", "install", "-r", str(reqs)])
+            subprocess.check_call([str(venv_python()), "-m", "pip", "install", "-r", str(reqs)])
         else:
             print("⚠️ No requirements.txt found at the root; skipping dependency install.")
-
+    # Ensure relative paths (like ./modules) resolve next to this file
+    os.chdir(str(SCRIPT_DIR))
     print("🔁 Re-launching inside virtual environment …\n")
-    os.execv(str(VENV / "bin" / "python"), [str(VENV / "bin" / "python")] + sys.argv)
+    py = str(venv_python())
+    os.execv(py, [py] + sys.argv)
+
+# After relaunch: make sure script folder is importable when started from parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+# Script starts from here
 
 import asyncio
 import websockets
@@ -60,24 +63,35 @@ async def broadcast_to_clients(message):
 
 # --- Load all Python modules in ./modules ---
 def load_modules():
-    modules_dir = "modules"
-    for file in os.listdir(modules_dir):
-        if file.endswith(".py") and not file.startswith("__"):
-            module_name = file[:-3]
-            try:
-                module = importlib.import_module(f"modules.{module_name}")
-                if hasattr(module, "TYPE") and hasattr(module, "ACTIONS"):
-                    DISPATCH_TABLE[module.TYPE] = module
-                    print(f"✅ Registered: {module_name} for type '{module.TYPE}'")
-                    
-                    # If module supports background telemetry or async updates
-                    if hasattr(module, "start_background_loop"):
-                        asyncio.create_task(module.start_background_loop(broadcast_to_clients))
-                else:
-                    print(f"⚠️ Module {module_name} loaded but missing TYPE or ACTIONS")
-            except Exception as e:
-                print(f"❌ Failed to load module {module_name}: {e}")
-                print(traceback.format_exc())
+    modules_dir = SCRIPT_DIR / "modules"
+    if not modules_dir.exists():
+        print(f"❌ No 'modules' folder found at {modules_dir}")
+        return
+
+    for file in modules_dir.glob("*.py"):
+        if file.name.startswith("__"):
+            continue
+        module_name = file.stem
+        try:
+            # Load module by absolute path so it works regardless of CWD
+            spec = importlib.util.spec_from_file_location(f"modules.{module_name}", str(file))
+            module = importlib.util.module_from_spec(spec)
+            assert spec and spec.loader
+            spec.loader.exec_module(module)
+
+            if hasattr(module, "TYPE") and hasattr(module, "ACTIONS"):
+                DISPATCH_TABLE[module.TYPE] = module
+                print(f"✅ Registered: {module_name} for type '{module.TYPE}'")
+
+                # If module supports background telemetry or async updates
+                if hasattr(module, "start_background_loop"):
+                    asyncio.create_task(module.start_background_loop(broadcast_to_clients))
+            else:
+                print(f"⚠️ Module {module_name} loaded but missing TYPE or ACTIONS")
+        except Exception as e:
+            print(f"❌ Failed to load module {module_name}: {e}")
+            print(traceback.format_exc())
+
 
 # --- WebSocket handler ---
 async def handler(websocket):

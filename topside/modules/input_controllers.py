@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 import pygame
 import websockets
 from modules.mappings.gamepad_mappings import (DETECT_HINTS, MAPPINGS, BINDINGS)
+import contextlib
 
 # -------- Tunables --------
 DEADZONE = 0.10
@@ -21,6 +22,14 @@ TURN_DZ = 0.08             # deadzone for right-stick X (turn)
 DRIVE_SEND_INTERVAL = 0.05 # seconds between motion packets
 DEFAULT_MOTION_FAILSAFE = {"type": "motor", "action": "set", "throttle": 0, "turn": 0}
 # --------------------------
+
+async def _drain(ws):
+    # Read and discard everything (lets websockets handle ping/pong internally)
+    try:
+        async for _ in ws:
+            pass
+    except Exception:
+        pass
 
 def dz(v: float) -> float: return 0.0 if abs(v) < DEADZONE else v
 def to_angle(v: float) -> int: return int(90 + v * SCALE)
@@ -85,9 +94,10 @@ async def run(ws_url: str):
     while True:
         try:
             print(f"🔌 Connecting to {ws_url} …")
-            async with websockets.connect(ws_url, ping_interval=KEEPALIVE_PING, ping_timeout=KEEPALIVE_PING) as ws:
+            async with websockets.connect(ws_url, ping_interval=(KEEPALIVE_PING-20), ping_timeout=KEEPALIVE_PING) as ws:
                 print("✅ WebSocket connected")
-
+                drain_task = asyncio.create_task(_drain(ws))
+                
                 while True:
                     pygame.event.pump()
 

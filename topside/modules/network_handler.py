@@ -1,5 +1,4 @@
 # modules/network_handler.py
-
 import asyncio
 import websockets
 import json
@@ -12,7 +11,7 @@ LOCAL_LISTEN_PORT = 9999
 relay_instance = None
 
 
-# ✅ Modern handler for websockets >=11.x (15.x confirmed)
+# ✅ Modern handler for websockets >=11.x
 async def handle_gui_or_module(websocket):
     global relay_instance
     if relay_instance:
@@ -29,7 +28,15 @@ class NetworkRelay:
     async def connect_to_rov(self):
         while True:
             try:
-                self.rov_ws = await websockets.connect(REMOTE_ROV_WS)
+                # Keep pings on the REMOTE link (not on localhost).
+                self.rov_ws = await websockets.connect(
+                    REMOTE_ROV_WS,
+                    ping_interval=20,   # send ping every 20s
+                    ping_timeout=60,    # allow 60s for pong
+                    open_timeout=10,
+                    close_timeout=5,
+                    max_queue=None,
+                )
                 print(f"🔌 Connected to ROV at {REMOTE_ROV_WS}")
                 return
             except Exception as e:
@@ -39,11 +46,14 @@ class NetworkRelay:
     async def handle_local_client(self, websocket):
         self.local_clients.add(websocket)
         print(f"🖥️ Local client connected ({len(self.local_clients)} total)")
-
         try:
+            # Drain messages from the local client and forward to the ROV
             async for message in websocket:
                 if self.rov_ws:
-                    await self.rov_ws.send(message)
+                    try:
+                        await self.rov_ws.send(message)
+                    except Exception as e:
+                        print(f"⚠️ Failed to send to ROV: {e}")
         except Exception as e:
             print(f"⚠️ Local client error: {e}")
         finally:
@@ -54,7 +64,8 @@ class NetworkRelay:
         while True:
             try:
                 async for message in self.rov_ws:
-                    for client in self.local_clients.copy():
+                    # Fan-out to all currently connected local clients
+                    for client in list(self.local_clients):
                         try:
                             await client.send(message)
                         except Exception as e:
@@ -69,18 +80,20 @@ class NetworkRelay:
 
     async def run(self):
         global relay_instance
-        relay_instance = self  # expose this instance to the global handler
+        relay_instance = self
 
         await self.connect_to_rov()
         asyncio.create_task(self.receive_from_rov())
 
         print(f"🧩 Relay listening on ws://localhost:{LOCAL_LISTEN_PORT}")
-        # server = await websockets.serve(handle_gui_or_module, "localhost", LOCAL_LISTEN_PORT)
+        # 🔕 Disable pings on the LOCAL hop (controller is send-only and doesn’t recv pings).
         server = await websockets.serve(
             handle_gui_or_module,
             "localhost",
             LOCAL_LISTEN_PORT,
-            ping_interval=30,   # ⏱️ Send ping every 30s
-            ping_timeout=20     # ⏳ Wait 20s for pong
+            ping_interval=None,   # <— no server-driven pings on localhost
+            ping_timeout=None,
+            max_queue=None,
+            close_timeout=5,
         )
         await server.wait_closed()

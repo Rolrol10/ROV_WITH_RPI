@@ -19,8 +19,10 @@ DEFAULT_FAILSAFE = {"type": "servo", "action": "set_angle", "pan": 90, "tilt": 9
 # --- Motion (throttle + turn) ---
 THROTTLE_DZ_PCT = 8        # trigger deadzone in percent (0..100)
 TURN_DZ = 0.08             # deadzone for right-stick X (turn)
-DRIVE_SEND_INTERVAL = 0.05 # seconds between motion packets
+DRIVE_SEND_INTERVAL = 0.1 # seconds between motion packets
 DEFAULT_MOTION_FAILSAFE = {"type": "motor", "action": "set", "throttle": 0, "turn": 0}
+MOTION_KEEPALIVE = 0.10   # seconds; MUST be < MCU watchdog timeout
+SERVO_KEEPALIVE  = 1.0    # optional UI/state heartbeat for pan/tilt
 # --------------------------
 
 async def _drain(ws):
@@ -69,6 +71,45 @@ def _detect_type() -> Optional[str]:
     print("⚠️ Unknown controller type, defaulting to ps4 mapping")
     return "ps4"
 
+async def _wait_for_controller(ws, prefer_guid=None, poll_s=0.05):
+    """Send one-shot failsafe, then wait until a controller is present.
+       Prefer previous GUID if available. Returns (js, name, guid)."""
+    with contextlib.suppress(Exception):
+        await ws.send(json.dumps(DEFAULT_FAILSAFE, separators=(',',':')))
+        await ws.send(json.dumps(DEFAULT_MOTION_FAILSAFE, separators=(',',':')))
+    print("🔌 Joystick disconnected. Waiting …")
+
+    while True:
+        await asyncio.sleep(poll_s)
+        pygame.event.pump()
+        with contextlib.suppress(Exception):
+            pygame.joystick.quit(); pygame.joystick.init()
+
+        n = pygame.joystick.get_count()
+        if n == 0:
+            continue
+
+        # pick by GUID if possible
+        idx = 0
+        if prefer_guid:
+            for i in range(n):
+                j = pygame.joystick.Joystick(i); j.init()
+                if hasattr(j, "get_guid") and j.get_guid() == prefer_guid:
+                    idx = i
+                    break
+
+        # (re)create stick
+        try:
+            js = pygame.joystick.Joystick(idx); js.init()
+            name = js.get_name()
+            guid = js.get_guid() if hasattr(js, "get_guid") else None
+        except Exception:
+            continue  # race; try again
+
+        print(f"✅ {name} reconnected" + (f" (guid {guid})" if guid else ""))
+        await asyncio.sleep(0.05)  # tiny settle
+        return js, name, guid
+    
 async def run(ws_url: str):
     ctrl_type = _detect_type()
     if not ctrl_type: return
@@ -101,15 +142,25 @@ async def run(ws_url: str):
                 while True:
                     pygame.event.pump()
 
-                    # Hot-unplug handling
+                    # Hot-unplug handling (robust)
                     if pygame.joystick.get_count() == 0:
-                        print("🔌 Joystick disconnected. Waiting …")
-                        await ws.send(json.dumps(DEFAULT_FAILSAFE, separators=(',',':')))
-                        await ws.send(json.dumps(DEFAULT_MOTION_FAILSAFE, separators=(',',':')))
-                        while pygame.joystick.get_count() == 0:
-                            await asyncio.sleep(0.5)
-                        js = pygame.joystick.Joystick(0); js.init()
-                        print(f"✅ {js.get_name()} reconnected")
+                        prefer_guid = js.get_guid() if 'js' in locals() and hasattr(js, "get_guid") else None
+                        js, name, guid = await _wait_for_controller(ws, prefer_guid=prefer_guid)
+
+                        # Re-detect mapping only if name suggests a different pad; otherwise keep previous
+                        detected = None
+                        for key, hints in DETECT_HINTS.items():
+                            if any(h in name.lower() for h in hints):
+                                detected = key; break
+                        if detected and detected != ctrl_type:
+                            ctrl_type = detected
+                            mapping = MAPPINGS[ctrl_type]
+                            binds   = BINDINGS.get(ctrl_type, {})
+                            print(f"🎮 Mapping switched to: {ctrl_type}")
+                        else:
+                            print(f"🎮 Mapping kept: {ctrl_type}")
+
+                        # Reset caches so change detection resumes cleanly
                         last_buttons = [0] * js.get_numbuttons()
                         last_hat = (0,0) if js.get_numhats() > 0 else None
                         last_pan = last_tilt = None
@@ -127,10 +178,13 @@ async def run(ws_url: str):
                     except Exception:
                         x = y = 0.0
 
+                    # Left stick -> servo pan/tilt
                     pan = to_angle(dz(x))
                     tilt = to_angle(dz(-y))
                     t = now()
-                    if (pan != last_pan or tilt != last_tilt) and (t - last_sent) >= SEND_INTERVAL:
+                    
+                    servo_changed = (pan != last_pan or tilt != last_tilt)
+                    if (servo_changed and (t - last_sent) >= SEND_INTERVAL) or ((t - last_sent) >= SERVO_KEEPALIVE):
                         await ws.send(json.dumps({
                             "type": "servo","action": "set_angle","pan": pan,"tilt": tilt
                         }, separators=(',',':')))
@@ -162,10 +216,13 @@ async def run(ws_url: str):
                         turn = int(round(clamp(float(rx_val), -1.0, 1.0) * 100))
                         turn = int(clamp(turn, -100, 100))
 
-                    # Send motion only on change, rate-limited
-                    if (((last_throttle is None or throttle != last_throttle) or
-                         (last_turn is None or turn != last_turn)) and
-                            (t - last_motion_sent) >= DRIVE_SEND_INTERVAL):
+                    # Send on change (rate-limited), OR send a periodic keepalive when unchanged
+                    motion_changed = (
+                        last_throttle is None or last_turn is None or
+                        throttle != last_throttle or turn != last_turn)
+                    
+                    if (motion_changed and (t - last_motion_sent) >= DRIVE_SEND_INTERVAL) \
+                        or ((t - last_motion_sent) >= MOTION_KEEPALIVE):
                         await ws.send(json.dumps({
                             "type":"motor","action":"set","throttle":throttle,"turn":turn
                         }, separators=(',',':')))
